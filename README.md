@@ -14,10 +14,11 @@ library(pcluster)
 ```
 
 ## Features
-- **Main functionality**: Perform inference after discretizing unobserved heterogeneity in the panel data model, see the paper [^1].
-- **Validation example**: An example 'test_example.R' is included. 'estimator_dc(formula, data, index)' is the main function.
+- **Main functionality**: Perform inference after discretizing unobserved heterogeneity in the panel data model, see the paper [^1]. 
+- **Validation example**: An example 'test_example.R' is included. 'estimator_dc(formula, data, index)' is the main function. 'cluster_general' is used to cluster the data into different groups.
 - ```{r }
   help(estimator_dc) # check an example provided
+  help(cluster_general) # check the arguments of this function
   ```
 
 ## Additional resources
