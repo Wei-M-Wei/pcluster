@@ -7,9 +7,8 @@ library(foreach)
 library(parallel)
 library(doParallel)
 library(doRNG)
-library(plm)
 library(tictoc)
-library(HDcluster)
+library(pcluster)
 
 # Set Seed for Reproducibility
 set.seed(1)
@@ -70,8 +69,10 @@ ols <- est[["res"]]
 G <- est[["G"]]
 C <- est[["C"]]
 summary_correct = est$summary_table
+print(summary_correct)
 coef_estimate = summary_correct$coefficients$Estimate
-std_error_original = summary_correct$coefficients$`Std. Error`
+
+# We use the heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit together with correction for the degrees of freedom, see our paper page 20.
 std_error_corrected = summary_correct$coefficients$`Std. Error corrected`
 
 
@@ -80,6 +81,6 @@ est_CF <- estimator_dc(formula, data, index, CF = TRUE, init = init)
 ols_CF <- est_CF[["res"]]
 coeff_CF <- ols_CF$coefficients
 summary_correct_CF = est_CF$summary_table
+print(summary_correct_CF)
 coef_estimate_CF = summary_correct_CF$coefficients$Estimate
-std_error_original_CF = summary_correct_CF$coefficients$`Std. Error`
 std_error_corrected_CF = summary_correct_CF$coefficients$`Std. Error corrected`
