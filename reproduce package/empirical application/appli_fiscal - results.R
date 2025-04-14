@@ -9,6 +9,7 @@ library(readr)
 library(sandwich)
 library(gtools)
 library(plm)
+library(pcluster)
 library(dplyr)
 library(kableExtra)
 
@@ -35,9 +36,9 @@ for (ind in 1:5) {
               `3` = df$totexppi,
               `4` = df$`edu exp pi`,
               `5` = df$`savings pi`)
-  
+
   X <- df$resrevpi
-  
+
   # Create ID and time vectors
   id <- numeric(N * T)
   for (i in 1:N) {
@@ -45,14 +46,14 @@ for (ind in 1:5) {
       id[(t - 1) * N + i] <- i
     }
   }
-  
+
   time <- numeric(N*T)
   for (i in (1:N)){
     for (t in (1:T)){
       time[((t-1)*N+1):(t*N)]<-t
     }
   }
-  
+
   # Prepare data frame
   data <- data.frame(
     Y = c(as.matrix(Y)),
@@ -60,12 +61,12 @@ for (ind in 1:5) {
     id = id,
     time = time
   )
-  
+
   # TWFE estimate
   ols_twfe <- plm(Y ~ X, data = data, index = c("id", "time"), model = "within", effect = "twoways")
   std_errors_twfe <- sqrt(vcovHC(ols_twfe, type = "HC0", method = "arellano"))
   Save_twfe <- ols_twfe$coefficients
-  
+
   # Standardize Y and X
   sY <- sd(data$Y)
   sX <- sd(data$X)
@@ -74,16 +75,16 @@ for (ind in 1:5) {
       Y = (Y - mean(Y)) / sY,
       X = (X - mean(X)) / sX
     )
-  
+
   # Baseline estimate
   set.seed(1)
-  est <- estimator_dc(Y ~ X - 1, data)
+  est <- estimator_dc(Y ~ X - 1, data, index = c('id', 'time'))
   ols <- est[["res"]]
   G <- est[["G"]]
   C <- est[["C"]]
-  std_errors <- sqrt(vcovHC(ols, type = "HC0", method = "arellano")) * sY / sX
+  std_errors <- est$summary_table$coefficients$`Std. Error corrected` * sY / sX
   Save <- ols$coefficients * sY / sX
-  
+
   # Bai's estimate with R = T^{1/4}
   mY <- reshape_to_matrix(data, "id", "time", "Y")
   X_list <- lapply(c("X"), function(var) reshape_to_matrix(data, "id", "time", var))
@@ -92,19 +93,19 @@ for (ind in 1:5) {
   est_Bai <- LS.factor(mX, mY, R = R)
   Save_Bai <- est_Bai[["beta"]] * sY / sX
   std_errors_Bai <- est_Bai[["hac.se"]] * sY / sX
-  
+
   # FA estimate
   est_FA <- FA(Y ~ X - 1, data)
   ols_FA <- est_FA[["res"]]
   std_errors_FA <- sqrt(vcovHC(ols_FA, type = "HC0", method = "arellano")) * sY / sX
   Save_FA <- ols_FA$coefficients * sY / sX
-  
+
   # CCE estimator
   pdata <- pdata.frame(data, index = c("id", "time"))
   ccep <- pcce(Y ~ X, data = pdata, model = "p")
   std_errors_cce <- sqrt(vcovHC(ccep, type = "HC0", method = "arellano")) * sY / sX
   Save_cce <- ccep$coefficients * sY / sX
-  
+
   # Save results
   save_result[2 * (ind - 1) + 1, 2:6] <- c(Save, Save_twfe, Save_Bai, Save_FA, Save_cce)
   save_result[2 * ind, 2:6] <- c(std_errors, std_errors_twfe, std_errors_Bai, std_errors_FA, std_errors_cce)

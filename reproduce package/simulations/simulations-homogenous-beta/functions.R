@@ -1,12 +1,3 @@
-# Estimator Function with Optional Cross-Fitting
-estimator_dc <- function(formula, data, CF = FALSE) {
-  if (!CF) {
-    est_without_CF(formula, data)
-  } else {
-    est_with_CF(formula, data)
-  }
-}
-
 # General Clustering Function
 cluster_general <- function(Y, X_list, N, T, type = "long", groups = NULL) {
   if (type == "long") {
@@ -57,139 +48,6 @@ reshape_to_matrix <- function(data, id_var, time_var, value_var) {
 split_indices <- function(dim, folds) {
   indices <- seq_len(dim)
   split(seq_len(dim), cut(indices, folds, labels = FALSE))
-}
-
-# Estimator Without Cross-Fitting
-est_without_CF <- function(formula, data) {
-  formula_vars <- all.vars(formula)
-  dependent_var <- formula_vars[1]
-  independent_vars <- formula_vars[-1]
-
-  if (!all(c("id", "time", dependent_var, independent_vars) %in% colnames(data))) {
-    stop("Data must contain 'id', 'time', dependent, and independent variables.")
-  }
-
-  Y <- reshape_to_matrix(data, "id", "time", dependent_var)
-  X_list <- lapply(independent_vars, function(var) reshape_to_matrix(data, "id", "time", var))
-  X_combined <- do.call(cbind, X_list)
-
-  N <- nrow(Y)
-  T <- ncol(Y)
-
-  clusteri <- cluster_general(Y, X_list, N, T, type = "long")
-  G <- clusteri$clusters
-  klong <- clusteri$res
-
-  clustert <- cluster_general(Y, X_list, N, T, type = "tall")
-  C <- clustert$clusters
-  ktall <- clustert$res
-
-  Du <- matrix(0, N, G)
-  Dv <- matrix(0, T, C)
-
-  for (j in seq_len(G)) {
-    Du[, j] <- as.numeric(klong$cluster == j)
-  }
-  for (j in seq_len(C)) {
-    Dv[, j] <- as.numeric(ktall$cluster == j)
-  }
-
-  Mu <- diag(N) - Du %*% solve(t(Du) %*% Du) %*% t(Du)
-  Mv <- diag(T) - Dv %*% solve(t(Dv) %*% Dv) %*% t(Dv)
-
-  tY <- c(Mu %*% Y %*% Mv)
-  tX_combined <- do.call(cbind, lapply(X_list, function(X) c(Mu %*% X %*% Mv)))
-  new_data <- data.frame(tY, tX_combined, data[, "id"], data[, "time"])
-  colnames(new_data) <- c(formula_vars, "id", "time")
-
-  list(res = plm(formula, data = new_data, index = c("id", "time"), model = "pooling"), G = G, C = C)
-}
-
-# Estimator with Cross-Fitting
-est_with_CF <- function(formula, data, folds = 2) {
-  formula_vars <- all.vars(formula)
-  dependent_var <- formula_vars[1]
-  independent_vars <- formula_vars[-1]
-
-  if (!all(c("id", "time", dependent_var, independent_vars) %in% colnames(data))) {
-    stop("Data must contain 'id', 'time', dependent, and independent variables.")
-  }
-
-  Y <- reshape_to_matrix(data, "id", "time", dependent_var)
-  X_list <- lapply(independent_vars, function(var) reshape_to_matrix(data, "id", "time", var))
-
-  N <- nrow(Y)
-  T <- ncol(Y)
-  N_folds <- split_indices(N, folds)
-  T_folds <- split_indices(T, folds)
-
-  fold_combinations <- expand.grid(N_fold = seq_along(N_folds), T_fold = seq_along(T_folds))
-
-  Gd <- numeric(nrow(fold_combinations))
-  Cd <- numeric(nrow(fold_combinations))
-  projection_matrices <- list()
-
-  for (i in seq_len(nrow(fold_combinations))) {
-    N_idx <- N_folds[[fold_combinations$N_fold[i]]]
-    T_idx <- T_folds[[fold_combinations$T_fold[i]]]
-
-    dim_N <- length(N_idx)
-    dim_T <- length(T_idx)
-
-    Y_comp_long <- Y[N_idx, -T_idx]
-    X_comp_long_list <- lapply(X_list, function(X) X[N_idx, -T_idx])
-
-    Y_comp_tall <- Y[-N_idx, T_idx]
-    X_comp_tall_list <- lapply(X_list, function(X) X[-N_idx, T_idx])
-
-    clusteri <- cluster_general(Y_comp_long, X_comp_long_list, nrow(Y_comp_long), ncol(Y_comp_long), type = "long")
-    clustert <- cluster_general(Y_comp_tall, X_comp_tall_list, nrow(Y_comp_tall), ncol(Y_comp_tall), type = "tall")
-
-    G <- clusteri$clusters
-    C <- clustert$clusters
-
-    Du <- matrix(0, dim_N, G)
-    Dv <- matrix(0, dim_T, C)
-
-    for (j in seq_len(G)) {
-      Du[, j] <- as.numeric(clusteri$res$cluster == j)
-    }
-    for (j in seq_len(C)) {
-      Dv[, j] <- as.numeric(clustert$res$cluster == j)
-    }
-
-    Mu <- diag(1, dim_N) - Du %*% solve(t(Du) %*% Du) %*% t(Du)
-    Mv <- diag(1, dim_T) - Dv %*% solve(t(Dv) %*% Dv) %*% t(Dv)
-
-    projection_matrices[[i]] <- list(Mu = Mu, Mv = Mv, N_slice = N_idx, T_slice = T_idx)
-    Gd[i] <- G
-    Cd[i] <- C
-  }
-
-  df <- 0
-
-  projection <- function(X) {
-    for (i in seq_along(projection_matrices)) {
-      proj <- projection_matrices[[i]]
-      X[proj$N_slice, proj$T_slice] <- proj$Mu %*% X[proj$N_slice, proj$T_slice] %*% proj$Mv
-    }
-    X
-  }
-
-  Y <- projection(Y)
-  X_list <- lapply(X_list, projection)
-
-  for (i in seq_along(projection_matrices)) {
-    proj <- projection_matrices[[i]]
-    df <- df + (length(proj$N_slice) - Gd[i]) * (length(proj$T_slice) - Cd[i])
-  }
-
-  tY <- c(Y)
-  tX_combined <- do.call(cbind, lapply(X_list, function(X) c(X)))
-  new_data <- data.frame(tY, tX_combined, data[, "id"], data[, "time"])
-  colnames(new_data) <- c(formula_vars, "id", "time")
-
-  list(res = plm(formula, data = new_data, index = c("id", "time"), model = "pooling"), df = df)
 }
 
 # Data Generation Function
@@ -255,31 +113,31 @@ LS.factor<- function(X,Y,R = 3,tol = 0.0001,repMin = 20,repMax = 100,exit_tol = 
   N = dim(Y)[1]
   T = dim(Y)[2]
   XX = X
-  if (is.na(dim(X)[3])){XX = array(X,dim=c(N,T,1))} 
+  if (is.na(dim(X)[3])){XX = array(X,dim=c(N,T,1))}
   K = dim(XX)[3]
-  
-  
+
+
   beta_init = as.matrix(rnorm(n=K), dim = c(K,1))
   Fhat_init = array(0, dim = c(T,R))
   obj_init = 0
-  
+
   beta_hat_int = beta_init + 1
   Fhat_interim = Fhat_init + 1
   obj_int = obj_init + 1
   iterations = 0
-  
+
   X.tilde = array(NA, dim = c(N,T, K))
-  
+
   Y.squeeze<-as.matrix(as.vector(Y),dim = N*T)
   X.squeeze<-matrix(XX, nrow = N*T, ncol = K)
-  
+
   W.squeeze = Y.squeeze - X.squeeze%*%beta_init
   Lambda_hat_int = array(NA, dim = c(N,R))
   for (rr in 1: R){
     Lambda_hat_int[,rr] = rnorm(n = N)
   }
   Lambda_init = Lambda_hat_int - 1
-  
+
   ef = 1
   while(
     abs(obj_init-obj_int)>=tol
@@ -289,53 +147,53 @@ LS.factor<- function(X,Y,R = 3,tol = 0.0001,repMin = 20,repMax = 100,exit_tol = 
     iterations = iterations + 1
     Mf = diag(T) - Fhat_interim%*%t(Fhat_interim)/T
     Mlambda = diag(N) - (Lambda_hat_int)%*%solve(t(Lambda_hat_int)%*%Lambda_hat_int)%*%t(Lambda_hat_int)
-    
+
     for (k in 1:K){
       X.tilde[,,k] = Mlambda%*%(XX[,,k])%*%Mf
     }
-    
+
     Y.tilde = Mlambda%*%(Y)%*%Mf
-    
+
     Y.squeeze.tilde<-as.matrix(as.vector(Y.tilde),dim = N*T)
     X.squeeze.tilde<-matrix(X.tilde, nrow = N*T, ncol = K)
     X.squeeze<-matrix(X, nrow = N*T, ncol = K)
-    
+
     beta_init = beta_hat_int
     beta_hat_int = solve(t(X.squeeze)%*%X.squeeze.tilde)%*%t(X.squeeze)%*%Y.squeeze.tilde
-    
+
     W.squeeze = Y.squeeze - X.squeeze%*%beta_init
     W = matrix(W.squeeze,nrow = N,ncol = T)
-    
+
     Fhat_init = Fhat_interim
     Fhat_interim = sqrt(T)*as.matrix(eigen(t(W)%*%(W))$vectors[,1:R])
-    
+
     Lambda_init = Lambda_hat_int
     Lambda_hat_int = ((1/T)*W%*%(Fhat_interim))
-    
+
     obj_init = obj_int
     obj_int <- sum(diag((W - Lambda_hat_int%*%t(Fhat_interim))%*%
                           t(W - Lambda_hat_int%*%t(Fhat_interim))))
     error<- W - Lambda_hat_int%*%t(Fhat_interim)
-    
+
     svd<-svd(W)
-    
+
     if(iterations>repMin&obj_int>obj_init*(1+exit_tol)){ef = -1} else{ef = 1}
-    
+
     if(ef == -1){beta_init = beta_hat_int}
   }
-  
+
   s.square <- sum((Y.squeeze.tilde - X.squeeze.tilde%*%beta_hat_int)^2)/((N - R)*(T - R) - 1)
   u <- Y.squeeze.tilde - X.squeeze.tilde%*%beta_hat_int
   X.X <- t(X.squeeze.tilde)%*%X.squeeze.tilde
   xs <- apply(X.squeeze.tilde,MARGIN = 2, function(x){u*x})
   beta.hac.se <- diag(sqrt((N*T)/((N - R)*(T - R) - 1)*solve(X.X)%*%t(xs)%*%xs%*%solve(X.X)))
   beta.se     <- diag(sqrt(s.square*solve(X.X)))
-  
-  
-  result<- list(beta = beta_hat_int, hac.se = beta.hac.se, se = beta.se,  
-                F = Fhat_interim, Lambda = Lambda_hat_int, 
+
+
+  result<- list(beta = beta_hat_int, hac.se = beta.hac.se, se = beta.se,
+                F = Fhat_interim, Lambda = Lambda_hat_int,
                 error = error,svd = svd, Iterations = iterations, Exit_flag = ef)
-  
+
   return(result)
 }
 
@@ -352,7 +210,7 @@ hnn.est <- function(Y,X, L, F){
   }
   diag(deltalambda) <- Inf
   # deltalambda[!lower.tri(deltalambda)] <- Inf
-  
+
   check <- N
   hnn.i <- list(c(1:N))
   hnn.inner <- c(which(deltalambda == min(deltalambda), arr.ind = TRUE)[1,])
@@ -376,7 +234,7 @@ hnn.est <- function(Y,X, L, F){
       for (kk in 1:dim(fours)[1]){
         hnn.i[[k]] <- append(hnn.i[[k]], list(fours[kk,]))
       }
-      
+
     }
     if(length(singles)!=0){
       min.linkage <- as.matrix(deltalambda[,singles])
@@ -401,7 +259,7 @@ hnn.est <- function(Y,X, L, F){
     }
   }
   diag(deltaf) <- Inf
-  
+
   check <- T
   hnn.t <- list(c(1:T))
   hnn.inner <- c(which(deltaf == min(deltaf), arr.ind = TRUE)[1,])
@@ -425,7 +283,7 @@ hnn.est <- function(Y,X, L, F){
       for (kk in 1:dim(fours)[1]){
         hnn.t[[k]] <- append(hnn.t[[k]], list(fours[kk,]))
       }
-      
+
     }
     if(length(singles)!=0){
       min.linkage <- as.matrix(deltaf[,singles])
@@ -444,7 +302,7 @@ hnn.est <- function(Y,X, L, F){
     D.T[hnn.t[[3]][[k]], k] <- 1
   }
   t.pair<-apply(D.T, MARGIN = 2, function(x){which(x==1)})
-  
+
   M.N <- diag(N) - D.N%*%solve(t(D.N)%*%D.N)%*%t(D.N)
   M.T <- diag(T) - D.T%*%solve(t(D.T)%*%D.T)%*%t(D.T)
   Y.tilde = M.N%*%Y%*%M.T
@@ -455,7 +313,7 @@ hnn.est <- function(Y,X, L, F){
   Y.squeeze.tilde <- as.matrix(as.vector(Y.tilde),dim = N*T)
   X.squeeze.tilde <- matrix(X.tilde, nrow = N*T, ncol = dim(X)[3])
   X.X <- t(X.squeeze.tilde)%*%X.squeeze.tilde
-  
+
   beta.hnn <- solve(t(X.squeeze.tilde)%*%X.squeeze.tilde)%*%(t(X.squeeze.tilde)%*%Y.squeeze.tilde)
   # s.square <- sum((Y.squeeze.tilde - X.squeeze.tilde%*%beta.hnn)^2)/(N*T - 1)
   se.cluster <- kronecker(D.T,D.N, FUN = '*')
@@ -465,11 +323,11 @@ hnn.est <- function(Y,X, L, F){
   }), dim = c(dim(se.cluster)[2], dim(X)[3])), MARGIN = 2, sum), dim = c(dim(X)[3],dim(X)[3]))
   dfa <- sqrt((N*T - 1)/((N - dim(D.N)[2])*(T - dim(D.T)[2]) - 1))
   beta.cluster.se <- sqrt(solve(X.X)%*%XOX%*%solve(X.X))*dfa
-  
+
   dfa <- sqrt((N*T - 1)/((N - dim(D.N)[2])*(T - dim(D.T)[2]) - 1))
-  
+
   s.square <- sum((Y.squeeze.tilde - X.squeeze.tilde%*%beta.hnn)^2/(N*T - 1))
-  
+
   uu <- c(Y.squeeze.tilde - X.squeeze.tilde%*%beta.hnn)
   xs <- apply(X.squeeze.tilde,MARGIN = 2, function(x){uu*x})
   beta.hac.se <- sqrt(solve(X.X)%*%(t(xs)%*%xs)%*%solve(X.X))*dfa
@@ -487,7 +345,7 @@ hnn.est <- function(Y,X, L, F){
     }
     diag(deltalambda) <- Inf
     # deltalambda[!lower.tri(deltalambda)] <- Inf
-    
+
     check <- N
     hnn.i <- list(c(1:N))
     hnn.inner <- c(which(deltalambda == min(deltalambda), arr.ind = TRUE)[1,])
@@ -511,7 +369,7 @@ hnn.est <- function(Y,X, L, F){
         for (kk in 1:dim(fours)[1]){
           hnn.i[[k]] <- append(hnn.i[[k]], list(fours[kk,]))
         }
-        
+
       }
       if(length(singles)!=0){
         min.linkage <- as.matrix(deltalambda[,singles])
@@ -536,7 +394,7 @@ hnn.est <- function(Y,X, L, F){
       }
     }
     diag(deltaf) <- Inf
-    
+
     check <- T
     hnn.t <- list(c(1:T))
     hnn.inner <- c(which(deltaf == min(deltaf), arr.ind = TRUE)[1,])
@@ -560,7 +418,7 @@ hnn.est <- function(Y,X, L, F){
         for (kk in 1:dim(fours)[1]){
           hnn.t[[k]] <- append(hnn.t[[k]], list(fours[kk,]))
         }
-        
+
       }
       if(length(singles)!=0){
         min.linkage <- as.matrix(deltaf[,singles])
@@ -579,7 +437,7 @@ hnn.est <- function(Y,X, L, F){
       D.T[hnn.t[[3]][[k]], k] <- 1
     }
     t.pair<-apply(D.T, MARGIN = 2, function(x){which(x==1)})
-    
+
     M.N <- diag(N) - D.N%*%solve(t(D.N)%*%D.N)%*%t(D.N)
     M.T <- diag(T) - D.T%*%solve(t(D.T)%*%D.T)%*%t(D.T)
     Y.tilde = M.N%*%Y%*%M.T
@@ -590,7 +448,7 @@ hnn.est <- function(Y,X, L, F){
     Y.squeeze.tilde <- as.matrix(as.vector(Y.tilde),dim = N*T)
     X.squeeze.tilde <- matrix(X.tilde, nrow = N*T, ncol = dim(X)[3])
     X.X <- t(X.squeeze.tilde)%*%X.squeeze.tilde
-    
+
     beta.hnn <- solve(t(X.squeeze.tilde)%*%X.squeeze.tilde)%*%(t(X.squeeze.tilde)%*%Y.squeeze.tilde)
     # s.square <- sum((Y.squeeze.tilde - X.squeeze.tilde%*%beta.hnn)^2)/(N*T - 1)
     se.cluster <- kronecker(D.T,D.N, FUN = '*')
@@ -600,11 +458,11 @@ hnn.est <- function(Y,X, L, F){
     }), dim = c(dim(se.cluster)[2], dim(X)[3])), MARGIN = 2, sum), dim = c(dim(X)[3],dim(X)[3]))
     dfa <- sqrt((N*T - 1)/((N - dim(D.N)[2])*(T - dim(D.T)[2]) - 1))
     beta.cluster.se <- sqrt(solve(X.X)%*%XOX%*%solve(X.X))*dfa
-    
+
     dfa <- sqrt((N*T - 1)/((N - dim(D.N)[2])*(T - dim(D.T)[2]) - 1))
-    
+
     s.square <- sum((Y.squeeze.tilde - X.squeeze.tilde%*%beta.hnn)^2/(N*T - 1))
-    
+
     uu <- c(Y.squeeze.tilde - X.squeeze.tilde%*%beta.hnn)
     xs <- apply(X.squeeze.tilde,MARGIN = 2, function(x){uu*x})
     beta.hac.se <- sqrt(solve(X.X)%*%(t(xs)%*%xs)%*%solve(X.X))*dfa

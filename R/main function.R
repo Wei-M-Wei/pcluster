@@ -97,7 +97,21 @@ estimator_dc <- function(formula, data, index, CF = FALSE, init = 30) {
   }
 }
 
-# General Clustering Function
+#' General Clustering Function
+#' @param Y outcome variable
+#' @param X_list covariate matrix
+#' @param N sample size
+#' @param T panel size
+#' @param init initial iteration number of k-means
+#' @param type cluster across units if 'tall' or time periods if 'long'
+#' @param groups number of the cluster and the default is 'NULL'
+#'
+#' @returns A list of fitted results is returned.
+#' Within this outputted list, the following elements can be found:
+#'     \item{res}{cluster results.}
+#'     \item{clusters}{cluster number.}
+#'
+#' @export
 cluster_general <- function(Y, X_list, N, T, init, type = "long", groups = NULL) {
   if (type == "long") {
     Y_mean <- rowMeans(Y)
@@ -342,9 +356,9 @@ est_with_CF <- function(formula, data, index, init, folds = 2) {
 
   summary_table <- list(
     call = summary(res)$call,
-    coefficients = summary_table_correct
+    coefficients = summary_table_correct,
+    significance_codes = "Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1"
   )
-  summary_table$significance_codes <- "Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1"
 
 
   list(res = res, df = df, estimate_correct = summary_table_correct, summary_table = summary_table)
