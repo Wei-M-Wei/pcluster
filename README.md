@@ -60,7 +60,7 @@ summary_correct = est$summary_table
 coef_estimate = summary_correct$coefficients$Estimate
 std_error = summary_correct$coefficients$`Std. Error corrected`
 
-# We recommond having a look at the 'text_example.R', where the summary table of the model gives
+# We recommend having a look at the 'text_example.R', where the summary table of the model gives
 
 > est$summary_table
 $call
