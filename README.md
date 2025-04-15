@@ -51,7 +51,7 @@ init <- 300
 # Baseline estimate, allows for cross-fitting
 est <- estimator_dc(formula, data, index, init = init)
 
-# We use the heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit,
+# We use the heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit
 # together with correction for the degrees of freedom
 ols <- est[["res"]]
 G <- est[["G"]]
