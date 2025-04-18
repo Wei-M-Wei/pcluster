@@ -14,10 +14,11 @@ library(pcluster)
 ```
 
 ## Features
-- **Main functionality**: Perform inference after discretizing unobserved heterogeneity in the panel data model, see the paper [^1].
-- **Validation example**: An example 'test_example.R' is included. 'estimator_dc(formula, data, index)' is the main function.
+- **Main functionality**: Perform inference after discretizing unobserved heterogeneity in the panel data model, see the paper [^1]. 
+- **Validation example**: An example 'test_example.R' is included. 'estimator_dc(formula, data, index)' is the main function. 'cluster_general' is used to cluster the data into different groups.
 - ```{r }
   help(estimator_dc) # check an example provided
+  help(cluster_general) # check the arguments of this function
   ```
 
 ## Additional resources
@@ -50,7 +51,7 @@ init <- 300
 # Baseline estimate, allows for cross-fitting
 est <- estimator_dc(formula, data, index, init = init)
 
-# We use the heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit,
+# We use the heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit
 # together with correction for the degrees of freedom
 ols <- est[["res"]]
 G <- est[["G"]]
@@ -59,7 +60,7 @@ summary_correct = est$summary_table
 coef_estimate = summary_correct$coefficients$Estimate
 std_error = summary_correct$coefficients$`Std. Error corrected`
 
-# We recommond having a look at the 'text_example.R', where the summary table of the model gives
+# We recommend having a look at the 'text_example.R', where the summary table of the model gives
 
 > est$summary_table
 $call
