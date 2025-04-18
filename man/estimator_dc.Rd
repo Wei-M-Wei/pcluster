@@ -21,8 +21,8 @@ estimator_dc(formula, data, index, CF = FALSE, init = 30)
 A list of fitted results is returned.
 Within this outputted list, the following elements can be found:
     \item{res}{regression model.}
-    \item{G}{cluster number of unit group.}
-    \item{C}{cluster number of time group.}
+    \item{G}{number of unit clusters.}
+    \item{C}{number of time clusters.}
     \item{estimate_correct}{corrected standard error, t value, and p value.}
     \item{summary_table}{summary of the model together with corrected estimates in the 'Coefficients'.}
 }

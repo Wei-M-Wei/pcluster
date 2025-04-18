@@ -40,7 +40,7 @@ Y <- X + F + E
 id_code <- numeric(N * T)
 for (i in 1:N) {
   for (t in 1:T) {
-    id_code[((t - 1) * N + i):(t * N)] <- 10+i
+    id_code[((t - 1) * N + i):(t * N)] <- 10 + i
   }
 }
 

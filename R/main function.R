@@ -12,8 +12,8 @@
 #' @returns A list of fitted results is returned.
 #' Within this outputted list, the following elements can be found:
 #'     \item{res}{regression model.}
-#'     \item{G}{cluster number of unit group.}
-#'     \item{C}{cluster number of time group.}
+#'     \item{G}{number of unit clusters.}
+#'     \item{C}{number of time clusters.}
 #'     \item{estimate_correct}{corrected standard error, t value, and p value.}
 #'     \item{summary_table}{summary of the model together with corrected estimates in the 'Coefficients'.}
 #'
@@ -186,6 +186,11 @@ est_without_CF <- function(formula, data, index, init) {
 
   data <- recode_indices(data,index)
 
+  if (!all(c("id", "time", dependent_var, independent_vars) %in% colnames(data))) {
+    stop("Data must contain 'id', 'time', dependent, and independent variables.")
+  }
+
+
   Y <- reshape_to_matrix(data, "id", "time", dependent_var)
   X_list <- lapply(independent_vars, function(var) reshape_to_matrix(data, "id", "time", var))
   X_combined <- do.call(cbind, X_list)
@@ -204,18 +209,20 @@ est_without_CF <- function(formula, data, index, init) {
 
   Du <- matrix(0, N, G)
   Dv <- matrix(0, T, C)
+  Diagu<- matrix(0,G,G)
+  Diagv<- matrix(0,C,C)
 
   for (j in seq_len(G)) {
     Du[, j] <- as.numeric(klong$cluster == j)
+    Diagu[j,j] <- 1/sum(Du[,j])
   }
   for (j in seq_len(C)) {
     Dv[, j] <- as.numeric(ktall$cluster == j)
+    Diagv[j,j] <- 1/sum(Dv[,j])
   }
 
-
-
-  Mu <- diag(N) - Du %*% solve(t(Du) %*% Du) %*% t(Du)
-  Mv <- diag(T) - Dv %*% solve(t(Dv) %*% Dv) %*% t(Dv)
+  Mu <- diag(N) - Du %*% Diagu %*% t(Du)
+  Mv <- diag(T) - Dv %*% Diagv %*% t(Dv)
 
   tY <- c(Mu %*% Y %*% Mv)
   tX_combined <- do.call(cbind, lapply(X_list, function(X) c(Mu %*% X %*% Mv)))
@@ -224,7 +231,7 @@ est_without_CF <- function(formula, data, index, init) {
   res = plm(formula, data = new_data, index = c("id", "time"), model = "pooling")
 
   coefs <- coef(res)
-  se_corrected <- sqrt(vcovHC(res, type = "HC0", method = "arellano")) * sqrt((N * T) / ((N-G)*(T-C)))
+  se_corrected <- sqrt(vcovHC(res, type = "HC0", method = "arellano")) * sqrt((N * T) / ( N*T - N*C - T*G  ))
   t_values_corrected <- coefs / se_corrected
 
   # Calculate p-values from t-distribution for each coefficient
@@ -238,9 +245,9 @@ est_without_CF <- function(formula, data, index, init) {
     p_value_Corrected = p_values_corrected
   )
 
-  colnames(summary_table_correct) = c('Estimate', 'Std. Error corrected', 't-value corrected', 'Pr(>|t|) corrected')
+  colnames(summary_table_correct) = c('Estimate', 'Std. Error', 't-value', 'Pr(>|t|)')
 
-  summary_table_correct$Signif <- sapply(summary_table_correct[["Pr(>|t|) corrected"]], get_stars)
+  summary_table_correct$Signif <- sapply(summary_table_correct[["Pr(>|t|)"]], get_stars)
 
   summary_table <- list(
     call = summary(res)$call,
@@ -258,6 +265,9 @@ est_with_CF <- function(formula, data, index, init, folds = 2) {
   independent_vars <- formula_vars[-1]
 
   data <- recode_indices(data,index)
+  if (!all(c("id", "time", dependent_var, independent_vars) %in% colnames(data))) {
+    stop("Data must contain 'id', 'time', dependent, and independent variables.")
+  }
 
   Y <- reshape_to_matrix(data, "id", "time", dependent_var)
   X_list <- lapply(independent_vars, function(var) reshape_to_matrix(data, "id", "time", var))
@@ -325,7 +335,7 @@ est_with_CF <- function(formula, data, index, init, folds = 2) {
 
   for (i in seq_along(projection_matrices)) {
     proj <- projection_matrices[[i]]
-    df <- df + (length(proj$N_slice) - Gd[i]) * (length(proj$T_slice) - Cd[i])
+    df <- df + length(proj$N_slice) * length(proj$T_slice) - length(proj$T_slice) * Gd[i] - length(proj$N_slice) * Cd[i]
   }
 
   tY <- c(Y)
@@ -350,9 +360,9 @@ est_with_CF <- function(formula, data, index, init, folds = 2) {
     p_value_Corrected = p_values_corrected
   )
 
-  colnames(summary_table_correct) = c('Estimate', 'Std. Error corrected', 't-value corrected', 'Pr(>|t|) corrected')
+  colnames(summary_table_correct) = c('Estimate', 'Std. Error', 't-value', 'Pr(>|t|)')
 
-  summary_table_correct$Signif <- sapply(summary_table_correct[["Pr(>|t|) corrected"]], get_stars)
+  summary_table_correct$Signif <- sapply(summary_table_correct[["Pr(>|t|)"]], get_stars)
 
   summary_table <- list(
     call = summary(res)$call,
