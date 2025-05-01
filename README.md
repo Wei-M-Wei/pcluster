@@ -58,7 +58,7 @@ G <- est[["G"]]
 C <- est[["C"]]
 summary_correct = est$summary_table
 coef_estimate = summary_correct$coefficients$Estimate
-std_error = summary_correct$coefficients$`Std. Error corrected`
+std_error = summary_correct$coefficients$`Std. Error`
 
 # We recommend having a look at the 'text_example.R', where the summary table of the model gives
 
