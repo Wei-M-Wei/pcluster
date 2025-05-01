@@ -25,7 +25,7 @@ library(pcluster)
 - **Replication code**: The repository includes replication code for all simulations and empirical applications.
 - **Suggestions welcome**: Further improvements are planned, and we encourage feedback and suggestions to enhance the package.
 
-## Corrected standard error
+## Corrected standard error (without cross-fitting)
 For inference, we use  heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit with a degree of freedom correction
 
 <p align="center">
@@ -58,7 +58,7 @@ G <- est[["G"]]
 C <- est[["C"]]
 summary_correct = est$summary_table
 coef_estimate = summary_correct$coefficients$Estimate
-std_error = summary_correct$coefficients$`Std. Error corrected`
+std_error = summary_correct$coefficients$`Std. Error`
 
 # We recommend having a look at the 'text_example.R', where the summary table of the model gives
 
