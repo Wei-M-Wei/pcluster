@@ -33,7 +33,7 @@ R package 'pcluster' is dedicated to do inference for linear panel data model wi
 Estimator Function with Optional Cross-Fitting
 }
 \examples{
-set.seed(1)
+# set.seed(1)
 # Generate data
 N <- 50
 T <- 50
@@ -88,14 +88,12 @@ C <- est[["C"]]
 # 'summary_correct' contains the original estimates and standard error corrected by the heteroskedasticity autocorrelation consistent standard error
 summary_correct = est$summary_table
 coef_estimate = summary_correct$coefficients$Estimate
-std_error_original = summary_correct$coefficients$`Std. Error`
-std_error_corrected = summary_correct$coefficients$`Std. Error corrected`
+std_error = summary_correct$coefficients$`Std. Error`
 
 # Cross-fitted estimate
 est_CF <- estimator_dc(formula, data, index, CF = TRUE, init = init)
 ols_CF <- est_CF[["res"]]
 summary_correct_CF = est_CF$summary_table
 coef_estimate_CF = summary_correct_CF$coefficients$Estimate
-std_error_original_CF = summary_correct_CF$coefficients$`Std. Error`
-std_error_corrected_CF = summary_correct_CF$coefficients$`Std. Error corrected`
+std_error_CF = summary_correct_CF$coefficients$`Std. Error`
 }

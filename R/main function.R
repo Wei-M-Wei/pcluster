@@ -20,7 +20,8 @@
 #' @import plm
 #' @export
 #'
-#' @examples set.seed(1)
+#' @examples
+#' # set.seed(1)
 
 #' # Generate data
 
@@ -77,16 +78,14 @@
 #' # 'summary_correct' contains the original estimates and standard error corrected by the heteroskedasticity autocorrelation consistent standard error
 #' summary_correct = est$summary_table
 #' coef_estimate = summary_correct$coefficients$Estimate
-#' std_error_original = summary_correct$coefficients$`Std. Error`
-#' std_error_corrected = summary_correct$coefficients$`Std. Error corrected`
+#' std_error = summary_correct$coefficients$`Std. Error`
 #'
 #' # Cross-fitted estimate
 #' est_CF <- estimator_dc(formula, data, index, CF = TRUE, init = init)
 #' ols_CF <- est_CF[["res"]]
 #' summary_correct_CF = est_CF$summary_table
 #' coef_estimate_CF = summary_correct_CF$coefficients$Estimate
-#' std_error_original_CF = summary_correct_CF$coefficients$`Std. Error`
-#' std_error_corrected_CF = summary_correct_CF$coefficients$`Std. Error corrected`
+#' std_error_CF = summary_correct_CF$coefficients$`Std. Error`
 
 estimator_dc <- function(formula, data, index, CF = FALSE, init = 30) {
   if (!CF) {
@@ -265,6 +264,7 @@ est_with_CF <- function(formula, data, index, init, folds = 2) {
   independent_vars <- formula_vars[-1]
 
   data <- recode_indices(data,index)
+
   if (!all(c("id", "time", dependent_var, independent_vars) %in% colnames(data))) {
     stop("Data must contain 'id', 'time', dependent, and independent variables.")
   }
