@@ -111,7 +111,7 @@ estimator_dc <- function(formula, data, index, CF = FALSE, init = 30) {
 #'     \item{clusters}{cluster number.}
 #'
 #' @export
-cluster_general <- function(Y, X_list, N, T, init, type = "long", groups = NULL) {
+cluster_general <- function(Y, X_list, N, T, init = 30, type = "long", groups = NULL) {
   if (type == "long") {
     Y_mean <- rowMeans(Y)
     X_means <- lapply(X_list, rowMeans)
