@@ -23,7 +23,7 @@ library(pcluster)
 
 ## Additional resources
 - **Replication code**: The repository includes replication code for all simulations and empirical applications.
-- **Suggestions welcome**: Further improvements are planned, and we encourage feedback and suggestions to enhance the package.
+- **Suggestions welcome**: Further improvements are planned, and we encourage feedback and suggestions to improve the package.
 
 ## Corrected standard error (without cross-fitting)
 For inference, we use  heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit with a degree of freedom correction
