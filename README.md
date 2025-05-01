@@ -29,7 +29,7 @@ library(pcluster)
 For inference, we use  heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit with a degree of freedom correction
 
 <p align="center">
-  <img src="CodeCogsEqn.png" alt="Formula" />
+  <img src="standard error.png" alt="Formula" />
 </p>
 
 where the corrected standard error refers to the estimator obtained without cross-fitting. For the estimator using cross-fitting, we recommend referring to the paper [^1].
