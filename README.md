@@ -1,4 +1,4 @@
-## pcluster
+## pcluster: Inference for linear panel data model with unkown functions of fixed effects
 
 This is the first version of the R package 'pcluster'. 
 
