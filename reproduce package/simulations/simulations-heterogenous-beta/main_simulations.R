@@ -44,7 +44,7 @@ for (j in seq_len(ncol(config_mat))) {
   DGP <- config_mat[1, j]
   rho <- config_mat[2, j]
   kappa <- config_mat[3, j]
-  
+
   res <- foreach(k = 1:Rep,
                  .combine = 'rbind',
                  .errorhandling = 'remove',
@@ -52,10 +52,10 @@ for (j in seq_len(ncol(config_mat))) {
                    # Generate Random Variables
                    gen <- generatei(N, T, DGP, rho, kappa)
                    data <- gen$data
-                   
+
                    # Formula for regression
                    formula <- vY ~ vX - 1
-                   
+
                    # Baseline estimate
                    est <- estimator_dci(formula, data)
                    std_errors <- sqrt(est$beta_var)
@@ -63,10 +63,10 @@ for (j in seq_len(ncol(config_mat))) {
                    Cov <- (2 <= Save + 1.96 * std_errors / sqrt(N)) &
                      (2 >= Save - 1.96 * std_errors / sqrt(N))
                    Wid <- 2 * 1.96 * std_errors / sqrt(N)
-                   
+
                    cbind(Save, Cov, Wid)
                  }
-  
+
   # Store Results
   save_result[j, ] <- c(
     DGP,
