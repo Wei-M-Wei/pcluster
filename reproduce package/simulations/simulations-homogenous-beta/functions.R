@@ -1,40 +1,3 @@
-# General Clustering Function
-cluster_general <- function(Y, X_list, N, T, type = "long", groups = NULL) {
-  if (type == "long") {
-    Y_mean <- rowMeans(Y)
-    X_means <- lapply(X_list, rowMeans)
-    data <- cbind(Y_mean, do.call(cbind, X_means))
-    variance <- sum(sapply(1:T, function(t) {
-      norm(cbind(Y[, t], sapply(X_list, function(X) X[, t])) - data, type = "F")^2
-    })) / (N * T^2)
-    dim_size <- N
-  } else if (type == "tall") {
-    Y_mean <- colMeans(Y)
-    X_means <- lapply(X_list, colMeans)
-    data <- cbind(Y_mean, do.call(cbind, X_means))
-    variance <- sum(sapply(1:N, function(i) {
-      norm(cbind(Y[i, ], sapply(X_list, function(X) X[i, ])) - data, type = "F")^2
-    })) / (N^2 * T)
-    dim_size <- T
-  } else {
-    stop("Invalid type. Use 'long' for rows or 'tall' for columns.")
-  }
-
-  # Clustering logic
-  if (!is.null(groups)) {
-    clusters <- groups
-    k_result <- kmeans(data, centers = clusters, algorithm = "Hartigan-Wong", nstart = 30)
-  } else {
-    clusters <- 1
-    repeat {
-      k_result <- kmeans(data, centers = clusters, algorithm = "Hartigan-Wong", nstart = 30)
-      if (k_result$tot.withinss / dim_size <= variance) break
-      clusters <- clusters + 1
-    }
-  }
-  list(res = k_result, clusters = clusters)
-}
-
 # Helper Function to Reshape Data into a Matrix
 reshape_to_matrix <- function(data, id_var, time_var, value_var) {
   reshaped <- reshape(data[, c(id_var, time_var, value_var)],
@@ -49,6 +12,7 @@ split_indices <- function(dim, folds) {
   indices <- seq_len(dim)
   split(seq_len(dim), cut(indices, folds, labels = FALSE))
 }
+
 
 # Data Generation Function
 generate <- function(N, T, DGP, rho = 0, kappa = 0) {
@@ -588,3 +552,4 @@ est_BLM_one_way <- function(formula, data) {
 
   list(res = plm(formula, data = new_data, index = c("id", "time"), model = "pooling"), df = G)
 }
+

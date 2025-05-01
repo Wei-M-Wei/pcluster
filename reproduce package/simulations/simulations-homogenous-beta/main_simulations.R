@@ -43,7 +43,7 @@ for (n in seq_along(Nlist)) {
     N <- Nlist[n]
     T <- Tlist[t]
 
-    res <- foreach(k = 1:Rep, .combine = 'rbind', .errorhandling = 'remove', .packages = c("gtools", "sandwich", "plm", "pcluster")) %dorng% {
+    res <- foreach(k = 1:Rep, .combine = 'rbind', .errorhandling = 'remove', .packages = c("gtools", "sandwich", "plm")) %dorng% {
       # Generate Random Variables
       data <- generate(N, T, DGP, rho, kappa)
 
@@ -51,22 +51,21 @@ for (n in seq_along(Nlist)) {
       formula <- vY ~ vX - 1
 
       # Baseline estimate
-      est <- estimator_dc(formula, data, index = c("id", "time"))
+      est <- estimator_dc(formula, data, index = c('id', 'time'))
       ols <- est[["res"]]
       G <- est[["G"]]
       C <- est[["C"]]
-      std_errors <- est$summary_table$coefficients$`Std. Error corrected`
+      std_errors <- est$summary_table$coefficients$`Std. Error`
 
       Save <- ols$coefficients
-      Cov <- (1 <= ols$coefficients + 1.96 * sqrt(N * T / ((N - G) * (T - C))) * std_errors) &
-        (1 >= ols$coefficients - 1.96 * sqrt(N * T / ((N - G) * (T - C))) * std_errors)
-      Wid <- 2 * 1.96 * sqrt(N * T / ((N - G) * (T - C))) * std_errors
+      Cov <- (1 <= ols$coefficients + 1.96 * std_errors) &
+        (1 >= ols$coefficients - 1.96 * std_errors)
+      Wid <- 2 * 1.96 * std_errors
 
       # Cross-fitted estimate
-      est_CF <- estimator_dc(formula, data, CF = TRUE, index = c("id", "time"))
-
+      est_CF <- estimator_dc(formula, data, index = c('id', 'time'), CF = TRUE)
       ols_CF <- est_CF[["res"]]
-      std_errors_CF <- est_CF$summary_table$coefficients$`Std. Error corrected`
+      std_errors_CF <- est_CF$summary_table$coefficients$`Std. Error`
 
       Save_CF <- ols_CF$coefficients
       Cov_CF <- (1 <= ols_CF$coefficients + 1.96 * std_errors_CF) &
