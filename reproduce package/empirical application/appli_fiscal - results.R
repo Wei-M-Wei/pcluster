@@ -82,7 +82,7 @@ for (ind in 1:5) {
   ols <- est[["res"]]
   G <- est[["G"]]
   C <- est[["C"]]
-  std_errors <- est$summary_table$coefficients$`Std. Error corrected` * sY / sX
+  std_errors <- est$summary_table$coefficients$`Std. Error` * sY / sX
   Save <- ols$coefficients * sY / sX
 
   # Bai's estimate with R = T^{1/4}
