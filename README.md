@@ -1,4 +1,4 @@
-## pcluster: Inference for linear panel data model with unkown functions of fixed effects
+## pcluster: Inference for linear panel data model with nonseparable two-way unobserved heterogeneity
 
 This is the first version of the R package 'pcluster'. 
 
