@@ -80,5 +80,4 @@ in which we reported corrected standard error, t value, and p value in 'Coeffici
 A CRAN release is coming soon.
 
 ## Reference
-[^1]: Beyhum, J., Mugnier, M. Inference after discretizing unobserved heterogeneity. [[arXiv:2502.09740
-Search](https://arxiv.org/abs/2502.09740).](https://arxiv.org/abs/2412.07352)
+[^1]: Beyhum, J., Mugnier, M. Inference after discretizing time-varying unobserved heterogeneity. [[https://arxiv.org/abs/2412.07352](https://arxiv.org/abs/2412.07352).]
