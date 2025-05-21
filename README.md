@@ -1,4 +1,4 @@
-## pcluster
+## pcluster: Inference for linear panel data model with nonseparable two-way unobserved heterogeneity
 
 This is the first version of the R package 'pcluster'. 
 
@@ -23,13 +23,13 @@ library(pcluster)
 
 ## Additional resources
 - **Replication code**: The repository includes replication code for all simulations and empirical applications.
-- **Suggestions welcome**: Further improvements are planned, and we encourage feedback and suggestions to enhance the package.
+- **Suggestions welcome**: Further improvements are planned, and we encourage feedback and suggestions to improve the package.
 
 ## Corrected standard error (without cross-fitting)
 For inference, we use  heteroskedasticity autocorrelation consistent standard errors clustered at the level of each unit with a degree of freedom correction
 
 <p align="center">
-  <img src="CodeCogsEqn.png" alt="Formula" />
+  <img src="standard error.png" alt="Formula" />
 </p>
 
 where the corrected standard error refers to the estimator obtained without cross-fitting. For the estimator using cross-fitting, we recommend referring to the paper [^1].
@@ -80,5 +80,4 @@ in which we reported corrected standard error, t value, and p value in 'Coeffici
 A CRAN release is coming soon.
 
 ## Reference
-[^1]: Beyhum, J., Mugnier, M. Inference after discretizing unobserved heterogeneity. [[arXiv:2502.09740
-Search](https://arxiv.org/abs/2502.09740).](https://arxiv.org/abs/2412.07352)
+[^1]: Beyhum, J., Mugnier, M. Inference after discretizing time-varying unobserved heterogeneity. [[https://arxiv.org/abs/2412.07352](https://arxiv.org/abs/2412.07352).]
