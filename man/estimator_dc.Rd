@@ -21,8 +21,10 @@ estimator_dc(formula, data, index, CF = FALSE, init = 30)
 A list of fitted results is returned.
 Within this outputted list, the following elements can be found:
     \item{res}{regression model.}
-    \item{G}{number of unit clusters.}
-    \item{C}{number of time clusters.}
+    \item{G}{number of unit clusters, only for the method without cross fitting.}
+    \item{C}{number of time clusters, only for the method without cross fitting.}
+    \item{unit_cluster}{detailed information of the unit clusters, only for the method without cross fitting.}
+    \item{time_cluster}{detailed information of the time clusters, only for the method without cross fitting.}
     \item{estimate_correct}{corrected standard error, t value, and p value.}
     \item{summary_table}{summary of the model together with corrected estimates in the 'Coefficients'.}
 }

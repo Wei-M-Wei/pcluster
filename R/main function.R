@@ -12,8 +12,10 @@
 #' @returns A list of fitted results is returned.
 #' Within this outputted list, the following elements can be found:
 #'     \item{res}{regression model.}
-#'     \item{G}{number of unit clusters.}
-#'     \item{C}{number of time clusters.}
+#'     \item{G}{number of unit clusters, only for the method without cross fitting.}
+#'     \item{C}{number of time clusters, only for the method without cross fitting.}
+#'     \item{unit_cluster}{detailed information of the unit clusters, only for the method without cross fitting.}
+#'     \item{time_cluster}{detailed information of the time clusters, only for the method without cross fitting.}
 #'     \item{estimate_correct}{corrected standard error, t value, and p value.}
 #'     \item{summary_table}{summary of the model together with corrected estimates in the 'Coefficients'.}
 #'
@@ -90,7 +92,7 @@
 estimator_dc <- function(formula, data, index, CF = FALSE, init = 30) {
   if (!CF) {
     est_without_CF(formula, data, index, init)
-    
+
   } else {
     est_with_CF(formula, data,index, init)
   }
@@ -131,7 +133,7 @@ cluster_general <- function(Y, X_list, N, T, init = 30, type = "long", groups = 
   } else {
     stop("Invalid type. Use 'long' for rows or 'tall' for columns.")
   }
-  
+
   # Clustering logic
   if (!is.null(groups)) {
     clusters <- groups
@@ -159,15 +161,15 @@ reshape_to_matrix <- function(data, id_var, time_var, value_var) {
 
 # Function to recode indices
 recode_indices <- function(data, index) {
-  
+
   unique_id <- sort(unique(data[,c(index[1])]))
   index_to_id <- setNames(1:length(unique_id), unique_id)
   data$id <- index_to_id[as.character(data[,c(index[1])])]
-  
+
   unique_time <- sort(unique(data[,c(index[2])]))
   index_to_time <- setNames(1:length(unique_time), unique_time)
   data$time <- index_to_time[as.character(data[,c(index[2])])]
-  
+
   data
 }
 
@@ -182,35 +184,35 @@ est_without_CF <- function(formula, data, index, init) {
   formula_vars <- all.vars(formula)
   dependent_var <- formula_vars[1]
   independent_vars <- formula_vars[-1]
-  
+
   data <- recode_indices(data,index)
-  
+
   if (!all(c("id", "time", dependent_var, independent_vars) %in% colnames(data))) {
     stop("Data must contain 'id', 'time', dependent, and independent variables.")
   }
-  
-  
+
+
   Y <- reshape_to_matrix(data, "id", "time", dependent_var)
   X_list <- lapply(independent_vars, function(var) reshape_to_matrix(data, "id", "time", var))
   X_combined <- do.call(cbind, X_list)
-  
+
   N <- nrow(Y)
   T <- ncol(Y)
-  
+
   clusteri <- cluster_general(Y, X_list, N, T, init, type = "long")
   G <- clusteri$clusters
   klong <- clusteri$res
-  
-  
+
+
   clustert <- cluster_general(Y, X_list, N, T, init, type = "tall")
   C <- clustert$clusters
   ktall <- clustert$res
-  
+
   Du <- matrix(0, N, G)
   Dv <- matrix(0, T, C)
   Diagu<- matrix(0,G,G)
   Diagv<- matrix(0,C,C)
-  
+
   for (j in seq_len(G)) {
     Du[, j] <- as.numeric(klong$cluster == j)
     Diagu[j,j] <- 1/sum(Du[,j])
@@ -219,42 +221,42 @@ est_without_CF <- function(formula, data, index, init) {
     Dv[, j] <- as.numeric(ktall$cluster == j)
     Diagv[j,j] <- 1/sum(Dv[,j])
   }
-  
+
   Mu <- diag(N) - Du %*% Diagu %*% t(Du)
   Mv <- diag(T) - Dv %*% Diagv %*% t(Dv)
-  
+
   tY <- c(Mu %*% Y %*% Mv)
   tX_combined <- do.call(cbind, lapply(X_list, function(X) c(Mu %*% X %*% Mv)))
   new_data <- data.frame(tY, tX_combined,  data[, "id"], data[, "time"])
   colnames(new_data) <- c(formula_vars, "id", "time")
   res = plm(formula, data = new_data, index = c("id", "time"), model = "pooling")
-  
+
   coefs <- coef(res)
   se_corrected <- sqrt(diag(vcovHC(res, type = "HC0", method = "arellano"))) * sqrt((N * T) / ( N*T - N*C - T*G  ))
   t_values_corrected <- coefs / se_corrected
-  
+
   # Calculate p-values from t-distribution for each coefficient
   df <- res$df.residual  # degrees of freedom
   p_values_corrected <- 2 * pt(-abs(t_values_corrected), df)
-  
+
   summary_table_correct <- data.frame(
     Estimate = coefs,
     SE_Corrected = se_corrected,
     t_value_Corrected = t_values_corrected,
     p_value_Corrected = p_values_corrected
   )
-  
+
   colnames(summary_table_correct) = c('Estimate', 'Std. Error', 't-value', 'Pr(>|t|)')
-  
+
   summary_table_correct$Signif <- sapply(summary_table_correct[["Pr(>|t|)"]], get_stars)
-  
+
   summary_table <- list(
     call = summary(res)$call,
     coefficients = summary_table_correct
   )
   summary_table$significance_codes <- "Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1"
-  
-  list(res = res, G = G, C = C, estimate_correct = summary_table_correct, summary_table = summary_table)
+
+  list(res = res, G = G, C = C, unit_cluster = klong, time_cluster = ktall, estimate_correct = summary_table_correct, summary_table = summary_table)
 }
 
 # Estimator with Cross-Fitting
@@ -262,66 +264,66 @@ est_with_CF <- function(formula, data, index, init, folds = 2) {
   formula_vars <- all.vars(formula)
   dependent_var <- formula_vars[1]
   independent_vars <- formula_vars[-1]
-  
+
   data <- recode_indices(data,index)
-  
+
   if (!all(c("id", "time", dependent_var, independent_vars) %in% colnames(data))) {
     stop("Data must contain 'id', 'time', dependent, and independent variables.")
   }
-  
+
   Y <- reshape_to_matrix(data, "id", "time", dependent_var)
   X_list <- lapply(independent_vars, function(var) reshape_to_matrix(data, "id", "time", var))
-  
+
   N <- nrow(Y)
   T <- ncol(Y)
   N_folds <- split_indices(N, folds)
   T_folds <- split_indices(T, folds)
-  
+
   fold_combinations <- expand.grid(N_fold = seq_along(N_folds), T_fold = seq_along(T_folds))
-  
+
   Gd <- numeric(nrow(fold_combinations))
   Cd <- numeric(nrow(fold_combinations))
   projection_matrices <- list()
-  
+
   for (i in seq_len(nrow(fold_combinations))) {
     N_idx <- N_folds[[fold_combinations$N_fold[i]]]
     T_idx <- T_folds[[fold_combinations$T_fold[i]]]
-    
+
     dim_N <- length(N_idx)
     dim_T <- length(T_idx)
-    
+
     Y_comp_long <- Y[N_idx, -T_idx]
     X_comp_long_list <- lapply(X_list, function(X) X[N_idx, -T_idx])
-    
+
     Y_comp_tall <- Y[-N_idx, T_idx]
     X_comp_tall_list <- lapply(X_list, function(X) X[-N_idx, T_idx])
-    
+
     clusteri <- cluster_general(Y_comp_long, X_comp_long_list, nrow(Y_comp_long), ncol(Y_comp_long), init, type = "long")
     clustert <- cluster_general(Y_comp_tall, X_comp_tall_list, nrow(Y_comp_tall), ncol(Y_comp_tall), init, type = "tall")
-    
+
     G <- clusteri$clusters
     C <- clustert$clusters
-    
+
     Du <- matrix(0, dim_N, G)
     Dv <- matrix(0, dim_T, C)
-    
+
     for (j in seq_len(G)) {
       Du[, j] <- as.numeric(clusteri$res$cluster == j)
     }
     for (j in seq_len(C)) {
       Dv[, j] <- as.numeric(clustert$res$cluster == j)
     }
-    
+
     Mu <- diag(1, dim_N) - Du %*% solve(t(Du) %*% Du) %*% t(Du)
     Mv <- diag(1, dim_T) - Dv %*% solve(t(Dv) %*% Dv) %*% t(Dv)
-    
+
     projection_matrices[[i]] <- list(Mu = Mu, Mv = Mv, N_slice = N_idx, T_slice = T_idx)
     Gd[i] <- G
     Cd[i] <- C
   }
-  
+
   df <- 0
-  
+
   projection <- function(X) {
     for (i in seq_along(projection_matrices)) {
       proj <- projection_matrices[[i]]
@@ -329,78 +331,78 @@ est_with_CF <- function(formula, data, index, init, folds = 2) {
     }
     X
   }
-  
+
   Y <- projection(Y)
   X_list <- lapply(X_list, projection)
-  
+
   for (i in seq_along(projection_matrices)) {
     proj <- projection_matrices[[i]]
     df <- df + length(proj$N_slice) * length(proj$T_slice) - length(proj$T_slice) * Gd[i] - length(proj$N_slice) * Cd[i]
   }
-  
+
   tY <- c(Y)
   tX_combined <- do.call(cbind, lapply(X_list, function(X) c(X)))
   new_data <- data.frame(tY, tX_combined, data[, "id"], data[, "time"])
   colnames(new_data) <- c(formula_vars, "id", "time")
-  
+
   res = plm(formula, data = new_data, index = c("id", "time"), model = "pooling")
-  
+
   coefs <- coef(res)
   se_corrected <- sqrt(diag(vcovHC(res, type = "HC0", method = "arellano"))) * sqrt((N * T) / df)
   t_values_corrected <- coefs / se_corrected
-  
+
   # Calculate p-values from t-distribution for each coefficient
   df_res <- res$df.residual  # degrees of freedom
   p_values_corrected <- 2 * pt(-abs(t_values_corrected), df_res)
-  
+
   summary_table_correct <- data.frame(
     Estimate = coefs,
     SE_Corrected = se_corrected,
     t_value_Corrected = t_values_corrected,
     p_value_Corrected = p_values_corrected
   )
-  
+
   colnames(summary_table_correct) = c('Estimate', 'Std. Error', 't-value', 'Pr(>|t|)')
-  
+
   summary_table_correct$Signif <- sapply(summary_table_correct[["Pr(>|t|)"]], get_stars)
-  
+
   summary_table <- list(
     call = summary(res)$call,
     coefficients = summary_table_correct,
     significance_codes = "Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1"
   )
-  
-  
+
+
   list(res = res, df = df, estimate_correct = summary_table_correct, summary_table = summary_table)
 }
 
 transform_vector <- function(vec, N) {
   C <- length(vec)
   mat <- matrix(0, nrow = N, ncol = N * C)
-  
+
   for (i in 1:N) {
     start_pos <- (i - 1) * C + 1
     end_pos <- i * C
     mat[i, start_pos:end_pos] <- vec
   }
-  
+
   return(mat)
 }
 
 transform_matrix <- function(mat, T, t) {
   N <- nrow(mat)
   G <- ncol(mat)
-  
+
   # Initialize an N x (T * G) matrix with zeros
   new_mat <- matrix(0, nrow = N, ncol = T * G)
-  
+
   # Compute the column range for insertion
   start_col <- (t - 1) * G + 1
   end_col <- t * G
-  
+
   # Insert the original matrix into the computed column range
   new_mat[, start_col:end_col] <- mat
-  
+
   return(new_mat)
 }
 
