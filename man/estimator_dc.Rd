@@ -4,7 +4,14 @@
 \alias{estimator_dc}
 \title{Inference after discretizing unobserved heterogeneity}
 \usage{
-estimator_dc(formula, data, index, CF = FALSE, init = 30)
+estimator_dc(
+  formula,
+  data,
+  index,
+  CF = FALSE,
+  init = 30,
+  cluster_type = "kmeans"
+)
 }
 \arguments{
 \item{formula}{regression formula}
@@ -16,6 +23,8 @@ estimator_dc(formula, data, index, CF = FALSE, init = 30)
 \item{CF}{cross-fitting if true}
 
 \item{init}{initial iteration number of k-means}
+
+\item{cluster_type}{kmeans (default choice) or kcenter}
 }
 \value{
 A list of fitted results is returned.

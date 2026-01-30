@@ -4,7 +4,16 @@
 \alias{cluster_general}
 \title{General Clustering Function}
 \usage{
-cluster_general(Y, X_list, N, T, init = 30, type = "long", groups = NULL)
+cluster_general(
+  Y,
+  X_list,
+  N,
+  T,
+  init = 30,
+  type = "long",
+  groups = NULL,
+  cluster_type = "kmeans"
+)
 }
 \arguments{
 \item{Y}{outcome variable}
