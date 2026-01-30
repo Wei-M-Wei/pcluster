@@ -22,7 +22,7 @@ library(pcluster)
   ```
 
 ## Additional resources
-- **Replication code**: The repository includes replication code for all simulations and empirical applications.
+- **Replication code**: The repository includes replication code for all simulations.
 - **Suggestions welcome**: Further improvements are planned, and we encourage feedback and suggestions to improve the package.
 
 ## Corrected standard error (without cross-fitting)

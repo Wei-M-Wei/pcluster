@@ -1,10 +1,11 @@
 Package: pcluster
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Inference after discretizing time-varying unobserved heterogeneity
 Version: 0.1.0
 Authors@R: c(
     person(
       "Jad Beyhum",
+      "Martin Mugnier",
       email = "jad.beyhum@kuleuven.be",
       role = c("aut", "cre")
     )
