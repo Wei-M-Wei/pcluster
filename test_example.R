@@ -8,6 +8,7 @@ library(parallel)
 library(doParallel)
 library(doRNG)
 library(tictoc)
+library(plm)
 library(pcluster)
 
 # Set Seed for Reproducibility
@@ -64,7 +65,7 @@ init <- 300
 # Baseline estimate
 help("estimator_dc")
 
-est <- estimator_dc(formula, data, index, init = init)
+est <- estimator_dc(formula, data, index, init = init, cluster_type = 'kcenter')
 ols <- est[["res"]]
 G <- est[["G"]]
 C <- est[["C"]]

@@ -89,12 +89,12 @@
 #' coef_estimate_CF = summary_correct_CF$coefficients$Estimate
 #' std_error_CF = summary_correct_CF$coefficients$`Std. Error`
 
-estimator_dc <- function(formula, data, index, CF = FALSE, init = 30) {
+estimator_dc <- function(formula, data, index, CF = FALSE, init = 30, cluster_type = 'kmeans') {
   if (!CF) {
-    est_without_CF(formula, data, index, init)
+    est_without_CF(formula, data, index, init, cluster_type = cluster_type)
 
   } else {
-    est_with_CF(formula, data,index, init)
+    est_with_CF(formula, data,index, init, cluster_type = cluster_type)
   }
 }
 
@@ -113,7 +113,7 @@ estimator_dc <- function(formula, data, index, CF = FALSE, init = 30) {
 #'     \item{clusters}{cluster number.}
 #'
 #' @export
-cluster_general <- function(Y, X_list, N, T, init = 30, type = "long", groups = NULL) {
+cluster_general <- function(Y, X_list, N, T, init = 30, type = "long", groups = NULL, cluster_type = 'kmeans') {
   if (type == "long") {
     Y_mean <- rowMeans(Y)
     X_means <- lapply(X_list, rowMeans)
@@ -134,6 +134,7 @@ cluster_general <- function(Y, X_list, N, T, init = 30, type = "long", groups = 
     stop("Invalid type. Use 'long' for rows or 'tall' for columns.")
   }
 
+  if (cluster_type == 'kmeans'){
   # Clustering logic
   if (!is.null(groups)) {
     clusters <- groups
@@ -145,7 +146,21 @@ cluster_general <- function(Y, X_list, N, T, init = 30, type = "long", groups = 
       if (k_result$tot.withinss / dim_size <= variance) break
       clusters <- clusters + 1
     }
+  }}else if (cluster_type == 'kcenter'){
+    if (!is.null(groups)) {
+      clusters <- groups
+      k_result <- kcenter(data, centers = clusters, nstart = init)
+    } else {
+      clusters <- 1
+      repeat {
+        k_result <- kcenter(data, centers = clusters,  nstart = init)
+        if (k_result$tot.withinss / dim_size <= variance) break
+        clusters <- clusters + 1
+      }
+    }
   }
+
+
   list(res = k_result, clusters = clusters)
 }
 
@@ -180,7 +195,7 @@ split_indices <- function(dim, folds) {
 }
 
 # Estimator Without Cross-Fitting
-est_without_CF <- function(formula, data, index, init) {
+est_without_CF <- function(formula, data, index, init, cluster_type = 'kmeans') {
   formula_vars <- all.vars(formula)
   dependent_var <- formula_vars[1]
   independent_vars <- formula_vars[-1]
@@ -199,12 +214,12 @@ est_without_CF <- function(formula, data, index, init) {
   N <- nrow(Y)
   T <- ncol(Y)
 
-  clusteri <- cluster_general(Y, X_list, N, T, init, type = "long")
+  clusteri <- cluster_general(Y, X_list, N, T, init, type = "long", cluster_type = cluster_type)
   G <- clusteri$clusters
   klong <- clusteri$res
 
 
-  clustert <- cluster_general(Y, X_list, N, T, init, type = "tall")
+  clustert <- cluster_general(Y, X_list, N, T, init, type = "tall", cluster_type = cluster_type)
   C <- clustert$clusters
   ktall <- clustert$res
 
@@ -260,7 +275,7 @@ est_without_CF <- function(formula, data, index, init) {
 }
 
 # Estimator with Cross-Fitting
-est_with_CF <- function(formula, data, index, init, folds = 2) {
+est_with_CF <- function(formula, data, index, init, folds = 2, cluster_type = 'kmeans') {
   formula_vars <- all.vars(formula)
   dependent_var <- formula_vars[1]
   independent_vars <- formula_vars[-1]
@@ -298,8 +313,8 @@ est_with_CF <- function(formula, data, index, init, folds = 2) {
     Y_comp_tall <- Y[-N_idx, T_idx]
     X_comp_tall_list <- lapply(X_list, function(X) X[-N_idx, T_idx])
 
-    clusteri <- cluster_general(Y_comp_long, X_comp_long_list, nrow(Y_comp_long), ncol(Y_comp_long), init, type = "long")
-    clustert <- cluster_general(Y_comp_tall, X_comp_tall_list, nrow(Y_comp_tall), ncol(Y_comp_tall), init, type = "tall")
+    clusteri <- cluster_general(Y_comp_long, X_comp_long_list, nrow(Y_comp_long), ncol(Y_comp_long), init, type = "long", cluster_type = cluster_type)
+    clustert <- cluster_general(Y_comp_tall, X_comp_tall_list, nrow(Y_comp_tall), ncol(Y_comp_tall), init, type = "tall", cluster_type = cluster_type)
 
     G <- clusteri$clusters
     C <- clustert$clusters
@@ -412,6 +427,79 @@ get_stars <- function(p) {
   else if (p < 0.05) return("*")
   else if (p < 0.1) return(".")
   else return(" ")
+}
+
+kcenter <- function(data, centers, nstart = 1) {
+  # Ensure data is a numeric matrix
+  data <- as.matrix(data)
+  n <- nrow(data)
+  d <- ncol(data)
+
+  best_result <- NULL
+  best_radius <- Inf
+
+  for(start in 1:nstart){
+    # Step 1: Compute distance matrix
+    dmat <- as.matrix(dist(data))
+
+    # Step 2: Initialize centers (first point randomly)
+    kcenters <- integer(centers)
+    kcenters[1] <- sample(1:n, 1)
+
+    # Step 3: Greedy selection of remaining centers
+    if(centers > 1){
+      for(i in 2:centers){
+        mindist <- apply(dmat[, kcenters[1:(i-1)], drop=FALSE], 1, min)
+        kcenters[i] <- which.max(mindist)
+      }
+    }
+
+    # Step 4: Assign each point to nearest center
+    cluster_assignments <- apply(dmat[, kcenters, drop=FALSE], 1, which.min)
+
+    # Step 5: Maximum distance to nearest center (k-center radius)
+    radius <- max(apply(dmat[, kcenters, drop=FALSE], 1, min))
+
+    # Keep the best start (smallest radius)
+    if(radius < best_radius){
+      best_radius <- radius
+
+      # Compute within-cluster sum of squares
+      withinss <- sapply(1:centers, function(i){
+        pts <- data[cluster_assignments == i, , drop=FALSE]
+        if(nrow(pts) == 0) return(0)
+        sum(rowSums((pts - matrix(data[kcenters[i], ], nrow=nrow(pts), ncol=d, byrow=TRUE))^2))
+      })
+
+      # Total sum of squares
+      totss <- sum(rowSums(scale(data, scale=FALSE)^2))
+
+      # Cluster sizes
+      size <- as.vector(table(factor(cluster_assignments, levels=1:centers)))
+
+      # Between-cluster sum of squares
+      overall_center <- colMeans(data)
+      centers_mat <- as.matrix(data[kcenters, , drop=FALSE])
+      betweenss <- sum(
+        rowSums((centers_mat - matrix(overall_center, nrow=centers, ncol=d, byrow=TRUE))^2) * size
+      )
+
+      # Save result
+      best_result <- list(
+        centers = centers_mat,
+        cluster = cluster_assignments,
+        size = size,
+        totss = totss,
+        withinss = withinss,
+        tot.withinss = sum(withinss),
+        betweenss = betweenss,
+        iter = 1,
+        kcenter_radius = radius
+      )
+    }
+  }
+
+  return(best_result)
 }
 
 
