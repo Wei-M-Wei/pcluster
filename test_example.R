@@ -78,10 +78,11 @@ std_error_corrected = summary_correct$coefficients$`Std. Error corrected`
 
 
 # Cross-fitted estimate
-est_CF <- estimator_dc(formula, data, index, CF = TRUE, init = init)
+est_CF <- estimator_dc(formula, data, index, CF = TRUE, init = init, cluster_type = 'kcenter')
 ols_CF <- est_CF[["res"]]
 coeff_CF <- ols_CF$coefficients
 summary_correct_CF = est_CF$summary_table
 print(summary_correct_CF)
 coef_estimate_CF = summary_correct_CF$coefficients$Estimate
 std_error_corrected_CF = summary_correct_CF$coefficients$`Std. Error corrected`
+

@@ -8,6 +8,7 @@
 #' @param index name of 'id' and 'time' in the data
 #' @param CF cross-fitting if true
 #' @param init initial iteration number of k-means
+#' @param cluster_type kmeans (default choice) or kcenter
 #'
 #' @returns A list of fitted results is returned.
 #' Within this outputted list, the following elements can be found:
